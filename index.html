@@ -267,15 +267,15 @@
       <input type="text" id="promptInput" placeholder="e.g. when the deploy finally works" autocomplete="off" />
       <button id="searchBtn">Search</button>
     </div>
-    <span class="settings-toggle" id="settingsToggle">Using shared demo key — click to use your own</span>
+    <span class="settings-toggle" id="settingsToggle">Using default key — click to use your own</span>
     <div id="settingsPanel">
       <label for="apiKeyInput">Your own GIPHY API key (optional, stored only in your browser)</label>
       <div class="row">
         <input type="text" id="apiKeyInput" placeholder="Paste your GIPHY API key" autocomplete="off" />
         <button id="saveKeyBtn">Save</button>
-        <button id="clearKeyBtn">Use demo key</button>
+        <button id="clearKeyBtn">Use default key</button>
       </div>
-      <p class="hint">This app works out of the box using GIPHY's shared public demo key — no signup needed, great for testing. It's rate-limited across everyone using it, so if it gets flaky, grab your own free key at <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">developers.giphy.com</a> (Create App → API key, ~2 min) and paste it here.</p>
+      <p class="hint">This app works out of the box with a built-in key — no signup needed to try it. If it ever gets rate-limited from lots of people testing at once, grab your own free key at <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">developers.giphy.com</a> (Create App → API key, ~2 min) and paste it here.</p>
     </div>
   </div>
 
@@ -303,10 +303,9 @@
 <script>
 (function () {
   const STORAGE_KEY = 'gif_prompt_generator_giphy_key';
-  // GIPHY's official public beta key — free, no signup, meant for exactly this
-  // kind of testing/demo use. Rate-limited and shared across everyone using it.
-  // Docs: https://developers.giphy.com/docs/api/
-  const DEMO_API_KEY = 'dc6zaTOxFJmzC';
+  // Default GIPHY API key for this app, so testers don't need to sign up
+  // to try it. Anyone can override it with their own key in settings.
+  const DEMO_API_KEY = 'a8eAEhv6nsP8J9Dq4htUySQU3fzPjrZl';
 
   const promptInput = document.getElementById('promptInput');
   const searchBtn = document.getElementById('searchBtn');
@@ -333,7 +332,7 @@
   function updateToggleLabel() {
     settingsToggle.textContent = getCustomKey()
       ? 'Using your own API key — click to change'
-      : 'Using shared demo key — click to use your own';
+      : 'Using default key — click to use your own';
   }
 
   function showToast(msg) {
@@ -366,7 +365,7 @@
     localStorage.removeItem(STORAGE_KEY);
     apiKeyInput.value = '';
     updateToggleLabel();
-    showToast('Back to demo key');
+    showToast('Back to default key');
   });
 
   function renderStatus(msg, isError) {
@@ -424,10 +423,10 @@
       const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 429) {
-          throw new Error('Shared demo key is rate-limited right now. Add your own free key in settings to keep going.');
+          throw new Error('Default key is rate-limited right now. Add your own free key in settings to keep going.');
         }
         if (res.status === 401 || res.status === 403) {
-          throw new Error('That API key was rejected. Check it in settings, or switch back to the demo key.');
+          throw new Error('That API key was rejected. Check it in settings, or switch back to the default key.');
         }
         throw new Error('Request failed (' + res.status + ')');
       }
