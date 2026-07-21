@@ -38,8 +38,9 @@ export default async function handler(req, res) {
 
   const instruction =
     'Translate this casual workplace scenario or complaint into overly formal, ' +
-    'ironic corporate-speak, as if it were a Slack message or status update email. ' +
-    'One sentence only. No quotes, no preamble, no explanation — just the translated line.' +
+    'ironic corporate-speak, as if it were a short Slack message or status update. ' +
+    'Limit: 2-3 short sentences, no more than 40 words total. Punchy, not rambling. ' +
+    'No quotes, no preamble, no explanation — just the translated lines.' +
     avoidLine +
     `\n\nScenario: "${prompt}"`;
 
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 80,
+        max_tokens: 100,
         messages: [{ role: 'user', content: instruction }],
       }),
     });
