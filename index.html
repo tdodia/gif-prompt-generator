@@ -550,6 +550,14 @@
     results.appendChild(grid);
   }
 
+  // GIF IDs to always exclude, regardless of query. GIPHY sometimes boosts
+  // sponsored/branded content (e.g. tied to current live events) across many
+  // unrelated searches — this isn't a bug in our query logic, it's GIPHY's
+  // own promotion showing up as "relevant." Add IDs here as they turn up.
+  const BLOCKED_GIF_IDS = new Set([
+    'UwtF7GNaaEF1vaMaz6' // "World Cup 2026 Football GIF by Respective" — sponsored, unrelated to any prompt
+  ]);
+
   async function fetchGifs(query, limit) {
     const url = 'https://api.giphy.com/v1/gifs/search?api_key=' +
       encodeURIComponent(API_KEY) +
@@ -563,7 +571,7 @@
       throw err;
     }
     const data = await res.json();
-    return data.data || [];
+    return (data.data || []).filter(g => !BLOCKED_GIF_IDS.has(g.id));
   }
 
   // Merge multiple query result lists into one deduped list, interleaving
