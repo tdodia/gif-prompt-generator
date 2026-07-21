@@ -3,19 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GIF Prompt Generator</title>
+<title>GifForThat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #ffffff;
-    --bg-subtle: #f7f6f3;
+    --bg-subtle: #fcfcfb;
     --text: #37352f;
     --muted: #9b9a97;
     --border: #e9e9e7;
     --border-strong: #d9d9d6;
     --ink: #191919;
     --ink-hover: #000000;
+    --accent: #ff5a36;
     --danger: #eb5757;
   }
   * { box-sizing: border-box; }
@@ -32,21 +33,16 @@
     max-width: 760px;
     margin: 0 auto;
   }
-  .eyebrow {
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin: 0 0 14px;
-  }
   h1 {
-    font-size: clamp(2.4rem, 6vw, 3.4rem);
-    font-weight: 800;
-    line-height: 1.03;
-    margin: 0 0 16px;
-    letter-spacing: -0.025em;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(2.6rem, 7vw, 4rem);
+    line-height: 1.08;
+    margin: 24px 0 16px;
+    letter-spacing: -0.01em;
   }
+  h1 .accent-text { color: var(--accent); }
   p.sub {
     color: var(--muted);
     margin-top: 0;
@@ -101,60 +97,33 @@
   button:active { background: #000000; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  #settingsPanel button {
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .chip {
     background: var(--bg);
     color: var(--text);
     border: 1px solid var(--border-strong);
-    font-weight: 600;
-    font-size: 0.85rem;
-    padding: 8px 14px;
-  }
-  #settingsPanel button:hover { background: var(--bg-subtle); }
-
-  .settings-toggle {
-    color: var(--muted);
     font-size: 0.82rem;
     font-weight: 600;
-    cursor: pointer;
-    margin-top: 12px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-    padding: 4px 0;
+    padding: 7px 13px;
+    border-radius: 999px;
   }
-  .settings-toggle:hover { color: var(--text); }
-
-  #settingsPanel {
-    display: none;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--bg);
   }
-  #settingsPanel.open { display: block; }
-  #settingsPanel label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--muted);
-    display: block;
-    margin-bottom: 6px;
+  .chip.surprise {
+    border-color: var(--accent);
+    color: var(--accent);
   }
-  #settingsPanel .row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  #settingsPanel a {
-    color: var(--ink);
-    font-weight: 600;
-    text-decoration: underline;
-  }
-  .hint {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--muted);
-    margin-top: 10px;
-    line-height: 1.5;
+  .chip.surprise:hover {
+    background: var(--accent);
+    color: white;
   }
 
   .grid {
@@ -208,11 +177,25 @@
   }
   .overlay button:hover { background: white; }
 
-  .example-label {
-    font-size: 0.8rem;
+  .caption-label {
+    font-size: 0.75rem;
     font-weight: 700;
-    color: var(--text);
-    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  .caption-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .caption-card {
+    display: none;
+  }
+  .caption-card .copy-caption-btn {
+    margin-top: 12px;
   }
 
   .status {
@@ -258,39 +241,27 @@
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">GIF Prompt Generator</p>
-  <h1>Type a vibe.<br>Get the GIF.</h1>
-  <p class="sub">Describe a scenario, mood, or reaction — we'll find matching GIFs.</p>
+  <h1>There's a GIF for <span class="accent-text">that.</span></h1>
+  <p class="sub">Type a vibe, a mood, or exactly what just happened — get the GIF that says it better.</p>
 
   <div class="card">
     <div class="search-row">
       <input type="text" id="promptInput" placeholder="e.g. when the deploy finally works" autocomplete="off" />
       <button id="searchBtn">Search</button>
     </div>
-    <span class="settings-toggle" id="settingsToggle">Using default key — click to use your own</span>
-    <div id="settingsPanel">
-      <label for="apiKeyInput">Your own GIPHY API key (optional, stored only in your browser)</label>
-      <div class="row">
-        <input type="text" id="apiKeyInput" placeholder="Paste your GIPHY API key" autocomplete="off" />
-        <button id="saveKeyBtn">Save</button>
-        <button id="clearKeyBtn">Use default key</button>
-      </div>
-      <p class="hint">This app works out of the box with a built-in key — no signup needed to try it. If it ever gets rate-limited from lots of people testing at once, grab your own free key at <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">developers.giphy.com</a> (Create App → API key, ~2 min) and paste it here.</p>
+    <div class="chip-row" id="chipRow">
+      <button type="button" class="chip" data-prompt="when the deploy finally works">deploy finally works</button>
+      <button type="button" class="chip" data-prompt="monday morning">monday morning</button>
+      <button type="button" class="chip" data-prompt="nailed the presentation">nailed the presentation</button>
+      <button type="button" class="chip" data-prompt="waiting for a reply">waiting for a reply</button>
+      <button type="button" class="chip surprise" id="surpriseBtn">Surprise me</button>
     </div>
   </div>
 
-  <div class="card">
-    <p class="example-label">Example result</p>
-    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); max-width: 200px;">
-      <div class="gif-card">
-        <img src="https://media1.giphy.com/media/cZ7rmKfFYOvYI/200.gif" alt="Example GIF result" loading="lazy" />
-        <div class="overlay" style="opacity: 1; background: linear-gradient(to top, rgba(0,0,0,0.35), transparent 60%);">
-          <button type="button">Copy link</button>
-          <button type="button">Open</button>
-        </div>
-      </div>
-    </div>
-    <p class="hint" style="margin-top: 12px;">Every real result renders exactly like this — image fills the tile, and Copy link / Open appear on hover.</p>
+  <div class="card caption-card" id="captionCard">
+    <p class="caption-label">Suggested caption</p>
+    <p class="caption-text" id="captionText"></p>
+    <button type="button" class="copy-caption-btn" id="copyCaptionBtn">Copy caption</button>
   </div>
 
   <div id="results"></div>
@@ -302,37 +273,145 @@
 
 <script>
 (function () {
-  const STORAGE_KEY = 'gif_prompt_generator_giphy_key';
-  // Default GIPHY API key for this app, so testers don't need to sign up
-  // to try it. Anyone can override it with their own key in settings.
-  const DEMO_API_KEY = 'a8eAEhv6nsP8J9Dq4htUySQU3fzPjrZl';
+  // Built-in GIPHY API key for this app — no signup needed to try it.
+  const API_KEY = 'a8eAEhv6nsP8J9Dq4htUySQU3fzPjrZl';
+
+  const SURPRISE_PROMPTS = [
+    'when the deploy finally works',
+    'monday morning',
+    'nailed the presentation',
+    'waiting for a reply',
+    'friday at 5pm',
+    'when they double text',
+    'me pretending to understand',
+    'accidentally reply all',
+    'finding money in an old jacket',
+    'when the wifi comes back',
+    'trying to look busy',
+    'when the meeting could have been an email'
+  ];
 
   const promptInput = document.getElementById('promptInput');
   const searchBtn = document.getElementById('searchBtn');
   const results = document.getElementById('results');
-  const settingsToggle = document.getElementById('settingsToggle');
-  const settingsPanel = document.getElementById('settingsPanel');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const saveKeyBtn = document.getElementById('saveKeyBtn');
-  const clearKeyBtn = document.getElementById('clearKeyBtn');
+  const chipRow = document.getElementById('chipRow');
+  const surpriseBtn = document.getElementById('surpriseBtn');
   const toast = document.getElementById('toast');
+  const captionCard = document.getElementById('captionCard');
+  const captionText = document.getElementById('captionText');
+  const copyCaptionBtn = document.getElementById('copyCaptionBtn');
 
-  function getCustomKey() {
-    return localStorage.getItem(STORAGE_KEY) || '';
+  // Words that add noise to a search but no real search-term value.
+  const STOPWORDS = new Set([
+    'a','an','the','when','my','me','i','im',"i'm",'just','finally','is','are',
+    'was','were','to','for','of','in','on','at','it','this','that','and','or',
+    'but','so','got','get','gets','getting','be','being','been','with','about',
+    'have','has','had','you','your','they','their','we','our','after','before',
+    'up','out','over','again','really','very','still','some','one'
+  ]);
+
+  // Local, zero-API mood lexicon: if any trigger word shows up in the prompt,
+  // blend in an extra search term GIPHY tends to have better coverage for,
+  // and pair it with a business-speak caption for the same mood.
+  // No AI call involved, purely a lookup table.
+  const MOOD_MAP = [
+    [['finally','done','works','worked','fixed','relief'], 'relief celebration',
+      "Thrilled to share that this is now fully resolved and live."],
+    [['monday','exhausted','tired','burnt out','burned out'], 'exhausted tired',
+      "Kicking off the week with lots of exciting things in the pipeline!"],
+    [['excited','hyped','pumped','cant wait',"can't wait"], 'excited hype',
+      "Really looking forward to what's ahead here — great momentum."],
+    [['nervous','anxious','waiting','worried'], 'anxious nervous waiting',
+      "Keeping a close eye on this and will circle back with updates shortly."],
+    [['angry','mad','rage','frustrated','furious'], 'frustrated angry rage',
+      "Flagging some friction on our end — let's sync to align on next steps."],
+    [['nailed','crushed it','proud','win','won','success'], 'celebration proud win',
+      "Proud of the team for really knocking this one out of the park."],
+    [['sad','upset','disappointed','bummed'], 'sad disappointed',
+      "Wanted to share a quick update — this didn't land as planned, regrouping now."],
+    [['confused','lost','what is happening','huh'], 'confused what',
+      "Looping in for a bit of clarity here — happy to jump on a quick call."],
+    [['double text','ghosted','left on read','reply'], 'waiting phone anxious',
+      "Just following up on my note below — appreciate your time whenever you're free."],
+    [['meeting','office','busy','work'], 'office tired busy',
+      "Back-to-back today, but wanted to make sure this didn't fall through the cracks."],
+    [['wifi','internet','connection','loading'], 'internet relief buffering',
+      "Thanks for your patience — everything's back up and running smoothly."],
+    [['money','broke','rich','paid'], 'money surprised excited',
+      "Excited to share some good news on the budget front."],
+    [['friday','weekend'], 'weekend excited',
+      "Wrapping up a strong week — have a great one, everyone!"],
+    [['presentation','pitch','demo'], 'confident presentation',
+      "Great energy in the room today — thanks for engaging with the deck."],
+    [['awkward','cringe','embarrassing'], 'awkward cringe',
+      "Well, that's one for the highlight reel. Moving forward!"]
+  ];
+
+  // Generic business-speak fallbacks for prompts that don't match a mood.
+  const GENERIC_CAPTIONS = [
+    'Wanted to share a quick update on {prompt}.',
+    'Circling back on {prompt} — more to come soon.',
+    "Quick note re: {prompt}. Appreciate everyone's flexibility.",
+    'Just a heads up on {prompt} — happy to discuss further.',
+    'Sharing a brief update regarding {prompt}.'
+  ];
+
+  function toTitleCase(str) {
+    return str.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1));
   }
 
-  function getApiKey() {
-    return getCustomKey() || DEMO_API_KEY;
+  // Purely local, zero-API "business speak" caption generator — matches the
+  // same mood lexicon used for search, so the caption and the GIFs line up.
+  function generateCaption(prompt) {
+    const matches = [];
+    for (const [triggers, , caption] of MOOD_MAP) {
+      if (triggers.some(t => hasWord(prompt, t))) matches.push(caption);
+    }
+    if (matches.length) {
+      return matches[Math.floor(Math.random() * matches.length)];
+    }
+    const template = GENERIC_CAPTIONS[Math.floor(Math.random() * GENERIC_CAPTIONS.length)];
+    return template.replace('{prompt}', toTitleCase(prompt));
   }
 
-  function setApiKey(key) {
-    localStorage.setItem(STORAGE_KEY, key.trim());
+  function extractKeywords(prompt) {
+    const words = prompt
+      .toLowerCase()
+      .replace(/[^\w\s']/g, '')
+      .split(/\s+/)
+      .filter(w => w && !STOPWORDS.has(w));
+    return words.slice(0, 5).join(' ');
   }
 
-  function updateToggleLabel() {
-    settingsToggle.textContent = getCustomKey()
-      ? 'Using your own API key — click to change'
-      : 'Using default key — click to use your own';
+  function hasWord(text, trigger) {
+    const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('\\b' + escaped + '\\b', 'i').test(text);
+  }
+
+  function moodQuery(prompt) {
+    const matches = [];
+    for (const [triggers, phrase] of MOOD_MAP) {
+      if (triggers.some(t => hasWord(prompt, t)) && !matches.includes(phrase)) {
+        matches.push(phrase);
+      }
+    }
+    return matches.length ? matches.slice(0, 2).join(' ') : null;
+  }
+
+  // Build up to 3 query variants from one prompt, all fired at GIPHY's
+  // existing free search endpoint — no external AI call, just smarter
+  // use of the API we already have.
+  function buildQueries(prompt) {
+    const queries = [prompt];
+    const keywords = extractKeywords(prompt);
+    if (keywords && keywords.toLowerCase() !== prompt.toLowerCase()) {
+      queries.push(keywords);
+    }
+    const mood = moodQuery(prompt);
+    if (mood && !queries.some(q => q.toLowerCase() === mood.toLowerCase())) {
+      queries.push(mood);
+    }
+    return queries.slice(0, 3);
   }
 
   function showToast(msg) {
@@ -340,33 +419,6 @@
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
-
-  // Init settings panel
-  apiKeyInput.value = getCustomKey();
-  updateToggleLabel();
-
-  settingsToggle.addEventListener('click', () => {
-    settingsPanel.classList.toggle('open');
-  });
-
-  saveKeyBtn.addEventListener('click', () => {
-    const key = apiKeyInput.value.trim();
-    if (!key) {
-      showToast('Enter a key first');
-      return;
-    }
-    setApiKey(key);
-    updateToggleLabel();
-    showToast('Using your API key now');
-    settingsPanel.classList.remove('open');
-  });
-
-  clearKeyBtn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEY);
-    apiKeyInput.value = '';
-    updateToggleLabel();
-    showToast('Back to default key');
-  });
 
   function renderStatus(msg, isError) {
     results.innerHTML = '<div class="status' + (isError ? ' error' : '') + '">' + msg + '</div>';
@@ -387,8 +439,8 @@
       card.innerHTML =
         '<img src="' + url + '" alt="' + (g.title || 'gif').replace(/"/g, '') + '" loading="lazy" />' +
         '<div class="overlay">' +
-          '<button class="copy-btn">Copy link</button>' +
-          '<button class="open-btn">Open</button>' +
+          '<button type="button" class="copy-btn">Copy link</button>' +
+          '<button type="button" class="open-btn">Open</button>' +
         '</div>';
       card.querySelector('.copy-btn').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -404,44 +456,104 @@
     results.appendChild(grid);
   }
 
+  async function fetchGifs(query, limit) {
+    const url = 'https://api.giphy.com/v1/gifs/search?api_key=' +
+      encodeURIComponent(API_KEY) +
+      '&q=' + encodeURIComponent(query) +
+      '&limit=' + limit +
+      '&rating=pg-13&lang=en';
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = new Error('Request failed (' + res.status + ')');
+      err.status = res.status;
+      throw err;
+    }
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  // Merge multiple query result lists into one deduped list, interleaving
+  // so no single query's results dominate the grid.
+  function mergeResults(lists, cap) {
+    const seen = new Set();
+    const merged = [];
+    let i = 0;
+    while (merged.length < cap && lists.some(list => i < list.length)) {
+      for (const list of lists) {
+        if (merged.length >= cap) break;
+        const gif = list[i];
+        if (gif && !seen.has(gif.id)) {
+          seen.add(gif.id);
+          merged.push(gif);
+        }
+      }
+      i++;
+    }
+    return merged;
+  }
+
   async function search() {
     const query = promptInput.value.trim();
     if (!query) {
       showToast('Type a prompt first');
       return;
     }
-    const apiKey = getApiKey();
 
     searchBtn.disabled = true;
     renderStatus('Searching…');
 
-    try {
-      const url = 'https://api.giphy.com/v1/gifs/search?api_key=' +
-        encodeURIComponent(apiKey) +
-        '&q=' + encodeURIComponent(query) +
-        '&limit=24&rating=pg-13&lang=en';
-      const res = await fetch(url);
-      if (!res.ok) {
-        if (res.status === 429) {
-          throw new Error('Default key is rate-limited right now. Add your own free key in settings to keep going.');
-        }
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('That API key was rejected. Check it in settings, or switch back to the default key.');
-        }
-        throw new Error('Request failed (' + res.status + ')');
+    captionText.textContent = generateCaption(query);
+    captionCard.style.display = 'block';
+
+    const queries = buildQueries(query);
+    const perQueryLimit = Math.max(8, Math.ceil(24 / queries.length));
+
+    const settled = await Promise.allSettled(
+      queries.map(q => fetchGifs(q, perQueryLimit))
+    );
+
+    const successLists = settled
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value);
+    const failures = settled.filter(r => r.status === 'rejected');
+
+    searchBtn.disabled = false;
+
+    if (!successLists.length) {
+      const status = failures[0] && failures[0].reason && failures[0].reason.status;
+      if (status === 429) {
+        renderStatus("This app hit GIPHY's rate limit — probably a lot of people testing at once. Try again in a minute.", true);
+      } else if (status === 401 || status === 403) {
+        renderStatus("This app's API key stopped working. Nothing to do on your end — let whoever built this know.", true);
+      } else {
+        renderStatus('Something went wrong. Try again in a moment.', true);
       }
-      const data = await res.json();
-      renderResults(data.data || []);
-    } catch (err) {
-      renderStatus(err.message || 'Something went wrong.', true);
-    } finally {
-      searchBtn.disabled = false;
+      return;
     }
+
+    renderResults(mergeResults(successLists, 24));
   }
 
   searchBtn.addEventListener('click', search);
   promptInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') search();
+  });
+
+  chipRow.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip:not(.surprise)');
+    if (!chip) return;
+    promptInput.value = chip.dataset.prompt;
+    search();
+  });
+
+  surpriseBtn.addEventListener('click', () => {
+    const pick = SURPRISE_PROMPTS[Math.floor(Math.random() * SURPRISE_PROMPTS.length)];
+    promptInput.value = pick;
+    search();
+  });
+
+  copyCaptionBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(captionText.textContent).then(() => showToast('Caption copied'));
   });
 
   renderStatus('Enter a prompt above to find GIFs.');
