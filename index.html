@@ -378,16 +378,25 @@
     [['deadline','crunch','behind schedule','running late'], 'stressed deadline rushing',
       "Working through a few final details — will have this wrapped shortly."],
     [['took credit','stole my idea','credit for my work'], 'annoyed unimpressed',
-      "Glad this idea is getting the visibility it deserves."]
+      "Glad this idea is getting the visibility it deserves."],
+    [['not listening',"aren't listening",'arent listening','wont listen',"won't listen",'not being heard','feedback ignored','falls on deaf ears','brushed off','dismissed','nobody cares','no one cares'], 'ignored eye roll unheard',
+      "Would love to find time to align so this feedback doesn't get lost."]
   ];
 
   // Generic business-speak fallbacks for prompts that don't match a mood.
+  // These lean on recognizable corporate-jargon clichés (per my last email,
+  // circling back, taking it offline...) rather than trying to sound like a
+  // genuine relevant update — that's the part that can't work without real
+  // language understanding, so the joke is the jargon itself instead.
   const GENERIC_CAPTIONS = [
-    'Wanted to share a quick update on {prompt}.',
+    'Per my last email: {prompt}.',
+    "Not to beat a dead horse, but let's revisit {prompt}.",
     'Circling back on {prompt} — more to come soon.',
-    "Quick note re: {prompt}. Appreciate everyone's flexibility.",
+    'Flagging {prompt} for visibility.',
+    "Let's take {prompt} offline.",
+    'Adding some context here on {prompt}.',
     'Just a heads up on {prompt} — happy to discuss further.',
-    'Sharing a brief update regarding {prompt}.'
+    "Per our conversation, following up on {prompt}."
   ];
 
   function toTitleCase(str) {
@@ -412,11 +421,11 @@
     return toTitleCase(p || prompt);
   }
 
-  // Purely local, zero-API "business speak" caption generator — matches the
-  // same mood lexicon used for search, so the caption and the GIFs line up.
-  // Pass the currently-shown caption as `avoid` to prefer a different one
-  // when the user hits "Try another".
-  function generateCaption(prompt, avoid) {
+  // Purely local, zero-API "business speak" caption generator — used as a
+  // fallback if the real AI caption call (see fetchAICaption) fails for any
+  // reason, so the feature never fully breaks. Matches the same mood
+  // lexicon used for search, so caption and GIFs stay thematically linked.
+  function generateLocalCaption(prompt, avoid) {
     const matches = [];
     for (const [triggers, , caption] of MOOD_MAP) {
       if (triggers.some(t => hasWord(prompt, t))) matches.push(caption);
@@ -430,6 +439,25 @@
       : GENERIC_CAPTIONS;
     const template = pool[Math.floor(Math.random() * pool.length)];
     return template.replace('{prompt}', cleanPromptForCaption(prompt));
+  }
+
+  // Real AI-generated caption, via the /api/caption serverless function
+  // (keeps the Anthropic key server-side). Falls back to the local
+  // heuristic generator above if this fails for any reason.
+  async function fetchAICaption(prompt, avoid) {
+    try {
+      const res = await fetch('/api/caption', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt, avoid }),
+      });
+      if (!res.ok) throw new Error('caption request failed');
+      const data = await res.json();
+      if (!data.caption) throw new Error('no caption in response');
+      return data.caption;
+    } catch (err) {
+      return generateLocalCaption(prompt, avoid);
+    }
   }
 
   function extractKeywords(prompt) {
@@ -569,8 +597,11 @@
     renderStatus('Searching…');
 
     lastQuery = query;
-    captionText.textContent = generateCaption(query);
+    captionText.textContent = 'Translating…';
     captionCard.style.display = 'block';
+    fetchAICaption(query).then(caption => {
+      if (promptInput.value.trim() === query) captionText.textContent = caption;
+    });
 
     const queries = buildQueries(query);
     const perQueryLimit = Math.max(8, Math.ceil(24 / queries.length));
@@ -625,7 +656,14 @@
 
   refreshCaptionBtn.addEventListener('click', () => {
     if (!lastQuery) return;
-    captionText.textContent = generateCaption(lastQuery, captionText.textContent);
+    const query = lastQuery;
+    const previous = captionText.textContent;
+    refreshCaptionBtn.disabled = true;
+    captionText.textContent = 'Translating…';
+    fetchAICaption(query, previous).then(caption => {
+      captionText.textContent = caption;
+      refreshCaptionBtn.disabled = false;
+    });
   });
 
   renderStatus('Enter a prompt above to find GIFs.');
