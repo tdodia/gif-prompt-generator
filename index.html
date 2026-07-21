@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GifForThat</title>
+<title>GifForThat — Corporate Edition</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -39,10 +39,18 @@
     font-weight: 400;
     font-size: clamp(2.6rem, 7vw, 4rem);
     line-height: 1.08;
-    margin: 24px 0 16px;
+    margin: 24px 0 10px;
     letter-spacing: -0.01em;
   }
   h1 .accent-text { color: var(--accent); }
+  .edition-tag {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
   p.sub {
     color: var(--muted);
     margin-top: 0;
@@ -194,9 +202,17 @@
   .caption-card {
     display: none;
   }
-  .caption-card .copy-caption-btn {
+  .caption-actions {
+    display: flex;
+    gap: 8px;
     margin-top: 12px;
   }
+  .refresh-caption-btn {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+  }
+  .refresh-caption-btn:hover { background: var(--bg-subtle); }
 
   .status {
     color: var(--muted);
@@ -242,7 +258,8 @@
 <body>
 <div class="wrap">
   <h1>There's a GIF for <span class="accent-text">that.</span></h1>
-  <p class="sub">Type a vibe, a mood, or exactly what just happened — get the GIF that says it better.</p>
+  <p class="edition-tag">Corporate Edition</p>
+  <p class="sub">Type what's happening at work — get the GIF and the corporate-approved caption to match.</p>
 
   <div class="card">
     <div class="search-row">
@@ -259,9 +276,12 @@
   </div>
 
   <div class="card caption-card" id="captionCard">
-    <p class="caption-label">Suggested caption</p>
+    <p class="caption-label">Corporate translator</p>
     <p class="caption-text" id="captionText"></p>
-    <button type="button" class="copy-caption-btn" id="copyCaptionBtn">Copy caption</button>
+    <div class="caption-actions">
+      <button type="button" class="copy-caption-btn" id="copyCaptionBtn">Copy caption</button>
+      <button type="button" class="refresh-caption-btn" id="refreshCaptionBtn">Try another</button>
+    </div>
   </div>
 
   <div id="results"></div>
@@ -282,10 +302,10 @@
     'nailed the presentation',
     'waiting for a reply',
     'friday at 5pm',
-    'when they double text',
+    'when the client wont stop emailing',
     'me pretending to understand',
     'accidentally reply all',
-    'finding money in an old jacket',
+    'when the budget actually gets approved',
     'when the wifi comes back',
     'trying to look busy',
     'when the meeting could have been an email'
@@ -300,6 +320,8 @@
   const captionCard = document.getElementById('captionCard');
   const captionText = document.getElementById('captionText');
   const copyCaptionBtn = document.getElementById('copyCaptionBtn');
+  const refreshCaptionBtn = document.getElementById('refreshCaptionBtn');
+  let lastQuery = '';
 
   // Words that add noise to a search but no real search-term value.
   const STOPWORDS = new Set([
@@ -344,7 +366,19 @@
     [['presentation','pitch','demo'], 'confident presentation',
       "Great energy in the room today — thanks for engaging with the deck."],
     [['awkward','cringe','embarrassing'], 'awkward cringe',
-      "Well, that's one for the highlight reel. Moving forward!"]
+      "Well, that's one for the highlight reel. Moving forward!"],
+    [['micromanaging','micromanager','micromanage','micromanaged','breathing down my neck','hovering','watching my every move'], 'annoyed eye roll boss',
+      "Appreciate the close collaboration and frequent check-ins on this."],
+    [['toxic','underpaid','undervalued','no recognition','unappreciated'], 'unappreciated eye roll',
+      "Would love to find some time to discuss growth and recognition."],
+    [['could have been an email','death by powerpoint','zoning out','boring meeting'], 'bored zoning out meeting',
+      "Let's take the rest offline to keep this efficient."],
+    [['layoff','layoffs','restructuring','downsizing','let go'], 'nervous worried news',
+      "Wanted to proactively share some context ahead of tomorrow's update."],
+    [['deadline','crunch','behind schedule','running late'], 'stressed deadline rushing',
+      "Working through a few final details — will have this wrapped shortly."],
+    [['took credit','stole my idea','credit for my work'], 'annoyed unimpressed',
+      "Glad this idea is getting the visibility it deserves."]
   ];
 
   // Generic business-speak fallbacks for prompts that don't match a mood.
@@ -360,18 +394,42 @@
     return str.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1));
   }
 
+  // Strip leading filler ("when", "my", "the"...) so a raw sentence-like
+  // prompt doesn't get stuffed awkwardly into a caption template.
+  function cleanPromptForCaption(prompt) {
+    let p = prompt.trim();
+    let stripped = true;
+    while (stripped) {
+      stripped = false;
+      for (const lead of ['when', 'my', 'the', 'a', 'an', "when my"]) {
+        const re = new RegExp('^' + lead + '\\s+', 'i');
+        if (re.test(p)) {
+          p = p.replace(re, '');
+          stripped = true;
+        }
+      }
+    }
+    return toTitleCase(p || prompt);
+  }
+
   // Purely local, zero-API "business speak" caption generator — matches the
   // same mood lexicon used for search, so the caption and the GIFs line up.
-  function generateCaption(prompt) {
+  // Pass the currently-shown caption as `avoid` to prefer a different one
+  // when the user hits "Try another".
+  function generateCaption(prompt, avoid) {
     const matches = [];
     for (const [triggers, , caption] of MOOD_MAP) {
       if (triggers.some(t => hasWord(prompt, t))) matches.push(caption);
     }
     if (matches.length) {
-      return matches[Math.floor(Math.random() * matches.length)];
+      const pool = matches.length > 1 && avoid ? matches.filter(c => c !== avoid) : matches;
+      return pool[Math.floor(Math.random() * pool.length)];
     }
-    const template = GENERIC_CAPTIONS[Math.floor(Math.random() * GENERIC_CAPTIONS.length)];
-    return template.replace('{prompt}', toTitleCase(prompt));
+    const pool = GENERIC_CAPTIONS.length > 1 && avoid
+      ? GENERIC_CAPTIONS.filter(t => t.replace('{prompt}', cleanPromptForCaption(prompt)) !== avoid)
+      : GENERIC_CAPTIONS;
+    const template = pool[Math.floor(Math.random() * pool.length)];
+    return template.replace('{prompt}', cleanPromptForCaption(prompt));
   }
 
   function extractKeywords(prompt) {
@@ -400,17 +458,25 @@
 
   // Build up to 3 query variants from one prompt, all fired at GIPHY's
   // existing free search endpoint — no external AI call, just smarter
-  // use of the API we already have.
+  // use of the API we already have. Long, sentence-like prompts tend to
+  // return weak/irrelevant results as a literal search, so for those we
+  // skip the raw text entirely and lean on the cleaned-up variants.
   function buildQueries(prompt) {
-    const queries = [prompt];
+    const wordCount = prompt.trim().split(/\s+/).filter(Boolean).length;
     const keywords = extractKeywords(prompt);
-    if (keywords && keywords.toLowerCase() !== prompt.toLowerCase()) {
+    const mood = moodQuery(prompt);
+    const queries = [];
+
+    if (wordCount <= 5) {
+      queries.push(prompt);
+    }
+    if (keywords && !queries.some(q => q.toLowerCase() === keywords.toLowerCase())) {
       queries.push(keywords);
     }
-    const mood = moodQuery(prompt);
     if (mood && !queries.some(q => q.toLowerCase() === mood.toLowerCase())) {
       queries.push(mood);
     }
+    if (!queries.length) queries.push(prompt);
     return queries.slice(0, 3);
   }
 
@@ -502,6 +568,7 @@
     searchBtn.disabled = true;
     renderStatus('Searching…');
 
+    lastQuery = query;
     captionText.textContent = generateCaption(query);
     captionCard.style.display = 'block';
 
@@ -554,6 +621,11 @@
 
   copyCaptionBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(captionText.textContent).then(() => showToast('Caption copied'));
+  });
+
+  refreshCaptionBtn.addEventListener('click', () => {
+    if (!lastQuery) return;
+    captionText.textContent = generateCaption(lastQuery, captionText.textContent);
   });
 
   renderStatus('Enter a prompt above to find GIFs.');
