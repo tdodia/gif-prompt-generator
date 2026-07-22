@@ -249,6 +249,11 @@
     font-weight: 600;
     margin-top: 36px;
   }
+  footer .giphy-word {
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
 
   @media (max-width: 480px) {
     .search-row { flex-direction: column; }
@@ -286,7 +291,7 @@
 
   <div id="results"></div>
 
-  <footer>Powered by GIPHY</footer>
+  <footer>Powered by <span class="giphy-word">GIPHY</span></footer>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -322,6 +327,7 @@
   const copyCaptionBtn = document.getElementById('copyCaptionBtn');
   const refreshCaptionBtn = document.getElementById('refreshCaptionBtn');
   let lastQuery = '';
+  let searchId = 0;
 
   // Words that add noise to a search but no real search-term value.
   const STOPWORDS = new Set([
@@ -422,7 +428,7 @@
   }
 
   // Purely local, zero-API "business speak" caption generator — used as a
-  // fallback if the real AI caption call (see fetchAICaption) fails for any
+  // fallback if the real AI call (see fetchAIGenerate) fails for any
   // reason, so the feature never fully breaks. Matches the same mood
   // lexicon used for search, so caption and GIFs stay thematically linked.
   function generateLocalCaption(prompt, avoid) {
@@ -441,10 +447,10 @@
     return template.replace('{prompt}', cleanPromptForCaption(prompt));
   }
 
-  // Real AI-generated caption, via the /api/caption serverless function
-  // (keeps the Anthropic key server-side). Falls back to the local
-  // heuristic generator above if this fails for any reason.
-  async function fetchAICaption(prompt, avoid) {
+  // Real AI-generated caption AND GIF search terms, via the /api/caption
+  // serverless function (keeps the Anthropic key server-side). Falls back to
+  // the local heuristic generator/query builder if this fails for any reason.
+  async function fetchAIGenerate(prompt, avoid) {
     try {
       const res = await fetch('/api/caption', {
         method: 'POST',
@@ -454,9 +460,12 @@
       if (!res.ok) throw new Error('caption request failed');
       const data = await res.json();
       if (!data.caption) throw new Error('no caption in response');
-      return data.caption;
+      const searchTerms = Array.isArray(data.searchTerms)
+        ? data.searchTerms.filter(t => typeof t === 'string' && t.trim())
+        : [];
+      return { caption: data.caption, searchTerms };
     } catch (err) {
-      return generateLocalCaption(prompt, avoid);
+      return { caption: generateLocalCaption(prompt, avoid), searchTerms: [] };
     }
   }
 
@@ -601,22 +610,30 @@
       return;
     }
 
+    const myId = ++searchId;
     searchBtn.disabled = true;
-    renderStatus('Searching…');
+    renderStatus('Thinking…');
 
     lastQuery = query;
     captionText.textContent = 'Translating…';
     captionCard.style.display = 'block';
-    fetchAICaption(query).then(caption => {
-      if (promptInput.value.trim() === query) captionText.textContent = caption;
-    });
 
-    const queries = buildQueries(query);
+    // Wait for the AI response before searching GIPHY — it supplies both
+    // the caption and (when available) smarter search terms than the local
+    // heuristic alone, so it's worth the extra ~1s before results appear.
+    const ai = await fetchAIGenerate(query);
+    if (myId !== searchId) return; // a newer search started, abandon this one
+
+    captionText.textContent = ai.caption;
+    renderStatus('Searching…');
+
+    const queries = ai.searchTerms.length ? ai.searchTerms.slice(0, 3) : buildQueries(query);
     const perQueryLimit = Math.max(8, Math.ceil(24 / queries.length));
 
     const settled = await Promise.allSettled(
       queries.map(q => fetchGifs(q, perQueryLimit))
     );
+    if (myId !== searchId) return; // a newer search started, abandon this one
 
     const successLists = settled
       .filter(r => r.status === 'fulfilled')
@@ -668,8 +685,8 @@
     const previous = captionText.textContent;
     refreshCaptionBtn.disabled = true;
     captionText.textContent = 'Translating…';
-    fetchAICaption(query, previous).then(caption => {
-      captionText.textContent = caption;
+    fetchAIGenerate(query, previous).then(ai => {
+      captionText.textContent = ai.caption;
       refreshCaptionBtn.disabled = false;
     });
   });
